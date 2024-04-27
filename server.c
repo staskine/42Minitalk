@@ -6,7 +6,7 @@
 /*   By: sataskin <sataskin@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/04/23 13:01:06 by sataskin          #+#    #+#             */
-/*   Updated: 2024/04/26 17:13:19 by sataskin         ###   ########.fr       */
+/*   Updated: 2024/04/27 16:48:38 by sataskin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,22 +21,31 @@ static char	*save_char(char *str, char c)
 	buf[0] = c;
 	buf[1] = '\0';
 	if (str == NULL)
-		str = ft_strdup(buf);
+	{
+		temp = ft_strdup(buf);
+		if (!temp)
+			exit (1);
+	}
 	else
 	{
-		temp = str;
-		str = ft_strjoin(temp, buf);
-		free(temp);
+		temp = ft_strjoin(str, buf);
+		if (!temp)
+		{
+			free(str);
+			exit (1);
+		}
+		free(str);
 	}
-	return (str);
+	return (temp);
 }
 
-static void	receiver(int signal)
+static void	receiver(int signal, siginfo_t *info, void *context)
 {
-	static char	*str;
+	static char	*str = NULL;
 	static char	ch;
 	static int	i;
 
+	(void)context;
 	if (signal == SIGUSR1)
 		ch = ch | 1;
 	i++;
@@ -47,6 +56,7 @@ static void	receiver(int signal)
 			ft_putendl_fd(str, 1);
 			free(str);
 			str = NULL;
+			kill(info->si_pid, SIGUSR1);
 		}
 		else
 			str = save_char(str, ch);
@@ -58,14 +68,18 @@ static void	receiver(int signal)
 
 int	main(void)
 {
-	pid_t	pid;
+	pid_t				pid;
+	struct sigaction	s_a;
 
 	pid = getpid();
 	ft_putstr_fd("PID is = ", 1);
 	ft_putnbr_fd(pid, 1);
 	ft_putchar_fd('\n', 1);
-	signal(SIGUSR1, receiver);
-	signal(SIGUSR2, receiver);
+	ft_memset(&s_a, 0, sizeof(s_a));
+	s_a.sa_sigaction = receiver;
+	s_a.sa_flags = SA_SIGINFO;
+	sigaction(SIGUSR1, &s_a, 0);
+	sigaction(SIGUSR2, &s_a, 0);
 	while (1)
 		pause();
 	return (0);
